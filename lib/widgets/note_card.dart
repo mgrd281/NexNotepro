@@ -8,129 +8,82 @@ class NoteCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
-  const NoteCard({
-    super.key,
-    required this.note,
-    required this.onTap,
-    this.onLongPress,
-  });
+  const NoteCard({super.key, required this.note, required this.onTap, this.onLongPress});
 
-  Color get _modeAccent => switch (note.mode) {
-    ThoughtMode.idea => NexColors.modeIdea,
-    ThoughtMode.deepThinking => NexColors.modeDeepThinking,
-    ThoughtMode.quickCapture => NexColors.modeQuickCapture,
-    ThoughtMode.reflection => NexColors.modeReflection,
-    ThoughtMode.taskOriented => NexColors.modeTaskOriented,
+  Color get _modeColor => switch (note.mode) {
+    ThoughtMode.idea => Nex.amber,
+    ThoughtMode.deepThinking => Nex.violet,
+    ThoughtMode.quickCapture => Nex.cyan,
+    ThoughtMode.reflection => Nex.blue,
+    ThoughtMode.taskOriented => Nex.green,
   };
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        onLongPress?.call();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(20),
+      onTap: () { HapticFeedback.lightImpact(); onTap(); },
+      onLongPress: () { HapticFeedback.mediumImpact(); onLongPress?.call(); },
+      child: Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: NexColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: NexColors.cardShadow,
-          border: Border(
-            left: BorderSide(color: _modeAccent, width: 3),
-          ),
+          color: Nex.surface,
+          borderRadius: BorderRadius.circular(Nex.r12),
+          border: Border.all(color: Nex.border, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: mode badge + pin
+            // Top row: mode dot + title + pin
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _modeAccent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: _modeColor, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
                   child: Text(
-                    '${note.mode.emoji} ${note.mode.label}',
-                    style: NexTypography.caption.copyWith(
-                      color: _modeAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    note.title,
+                    style: Nex.h3,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (note.emotionalTag != null) ...[
-                  const SizedBox(width: 8),
-                  Text(note.emotionalTag!.emoji, style: const TextStyle(fontSize: 14)),
-                ],
-                const Spacer(),
                 if (note.isPinned)
-                  Icon(Icons.push_pin_rounded, size: 16, color: NexColors.primary.withValues(alpha: 0.6)),
+                  Icon(Icons.push_pin_rounded, size: 14, color: Nex.textMuted),
               ],
             ),
-            const SizedBox(height: 12),
 
-            // Title
-            Text(
-              note.title,
-              style: NexTypography.titleLarge,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-
+            // Preview
             if (note.content.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 note.preview,
-                style: NexTypography.bodyMedium,
-                maxLines: 3,
+                style: Nex.bodySub,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
 
-            // Tags
-            if (note.tags.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: note.tags.take(3).map((tag) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: NexColors.surfaceSubtle,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '#$tag',
-                    style: NexTypography.caption.copyWith(
-                      color: NexColors.textSecondary,
-                    ),
-                  ),
-                )).toList(),
-              ),
-            ],
-
-            // Bottom: space + time
+            // Footer: space + time
             const SizedBox(height: 12),
             Row(
               children: [
-                Text(note.space.icon, style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
-                Text(
-                  note.space.label,
-                  style: NexTypography.caption,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Nex.surfaceDim,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(note.space.label, style: Nex.small),
                 ),
+                if (note.tags.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Text('#${note.tags.first}', style: Nex.small.copyWith(color: Nex.primary)),
+                ],
                 const Spacer(),
-                Text(
-                  _formatTime(note.updatedAt),
-                  style: NexTypography.caption,
-                ),
+                Text(_timeAgo(note.updatedAt), style: Nex.small),
               ],
             ),
           ],
@@ -139,13 +92,12 @@ class NoteCard extends StatelessWidget {
     );
   }
 
-  String _formatTime(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.day}/${dt.month}/${dt.year}';
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${dt.day}/${dt.month}';
   }
 }

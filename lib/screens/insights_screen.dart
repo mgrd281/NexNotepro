@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../models/note_model.dart';
 import '../providers/notes_provider.dart';
 import '../theme/app_theme.dart';
-import 'note_detail_screen.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
@@ -12,266 +11,155 @@ class InsightsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<NotesProvider>(
       builder: (context, provider, _) {
-        final insights = provider.allInsights;
         final notes = provider.notes;
+        final total = notes.length;
+        final thisWeek = notes.where((n) =>
+          DateTime.now().difference(n.createdAt).inDays < 7).length;
+        final withTasks = notes.where((n) => n.checklist.isNotEmpty).length;
+        final tasksCompleted = notes.expand((n) => n.checklist).where((c) => c.isCompleted).length;
+        final tasksTotal = notes.expand((n) => n.checklist).length;
+        final insights = provider.allInsights;
 
-        // Stats
-        final decisions = insights.where((i) => i.type == InsightType.decision).length;
-        final ideas = insights.where((i) => i.type == InsightType.idea).length;
-        final tasks = insights.where((i) => i.type == InsightType.task).length;
-        final followUps = insights.where((i) => i.type == InsightType.followUp).length;
+        // Mode distribution
+        final modeCounts = <ThoughtMode, int>{};
+        for (final n in notes) modeCounts[n.mode] = (modeCounts[n.mode] ?? 0) + 1;
 
-        return CustomScrollView(
+        return ListView(
           physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 16)),
+          padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 120),
+          children: [
+            Text('Insights', style: Nex.display),
+            const SizedBox(height: 4),
+            Text('Your thinking patterns', style: Nex.caption),
+            const SizedBox(height: 24),
 
-            // Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+            // Stats grid
+            GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.5,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _StatCard(label: 'Total Thoughts', value: '$total', icon: Icons.edit_note_rounded, color: Nex.primary),
+                _StatCard(label: 'This Week', value: '$thisWeek', icon: Icons.calendar_today_rounded, color: Nex.blue),
+                _StatCard(label: 'With Tasks', value: '$withTasks', icon: Icons.checklist_rounded, color: Nex.green),
+                _StatCard(label: 'Tasks Done', value: '$tasksCompleted/$tasksTotal', icon: Icons.check_circle_rounded, color: Nex.violet),
+              ],
+            ),
+
+            // Mode Breakdown
+            const SizedBox(height: 28),
+            Text('Thinking Modes', style: Nex.h3),
+            const SizedBox(height: 12),
+            ...ThoughtMode.values.map((m) {
+              final count = modeCounts[m] ?? 0;
+              final pct = total > 0 ? count / total : 0.0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Insight Engine', style: NexTypography.displayMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Patterns from your thinking',
-                      style: NexTypography.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // Stats grid
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  children: [
-                    _StatCard(emoji: '⚖️', label: 'Decisions', count: decisions, color: const Color(0xFF8B5CF6)),
-                    const SizedBox(width: 12),
-                    _StatCard(emoji: '💡', label: 'Ideas', count: ideas, color: NexColors.modeIdea),
-                    const SizedBox(width: 12),
-                    _StatCard(emoji: '☑️', label: 'Tasks', count: tasks, color: NexColors.modeTaskOriented),
-                    const SizedBox(width: 12),
-                    _StatCard(emoji: '🔄', label: 'Follow-ups', count: followUps, color: const Color(0xFF3B82F6)),
-                  ],
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 28)),
-
-            // Thinking overview
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        NexColors.primary.withValues(alpha: 0.08),
-                        NexColors.accent.withValues(alpha: 0.05),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.auto_awesome_rounded, color: NexColors.primary, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Thinking Overview', style: NexTypography.titleLarge.copyWith(color: NexColors.primary)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _generateOverview(notes, insights),
-                        style: NexTypography.bodyMedium.copyWith(
-                          color: NexColors.textPrimary,
-                          height: 1.6,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // Insights list
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text('Detected Insights', style: NexTypography.headlineMedium),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-            if (insights.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Center(
-                    child: Column(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('🔍', style: TextStyle(fontSize: 40)),
-                        const SizedBox(height: 12),
-                        Text('No insights yet', style: NexTypography.headlineMedium),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Write more notes and I\'ll find patterns',
-                          style: NexTypography.bodyMedium,
-                        ),
+                        Text(m.label, style: Nex.label),
+                        Text('$count', style: Nex.label.copyWith(color: Nex.textSub)),
                       ],
                     ),
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                sliver: SliverList.separated(
-                  itemCount: insights.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) {
-                    final insight = insights[i];
-                    final relatedNote = notes.where((n) => n.id == insight.noteId).firstOrNull;
-                    return GestureDetector(
-                      onTap: () {
-                        if (relatedNote != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => NoteDetailScreen(note: relatedNote),
-                            ),
-                          );
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: NexColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: NexColors.cardShadow,
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: NexColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Text(insight.type.emoji, style: const TextStyle(fontSize: 18)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(insight.type.label, style: NexTypography.titleMedium),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    relatedNote?.title ?? insight.content,
-                                    style: NexTypography.bodySmall,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right_rounded, color: NexColors.textTertiary, size: 20),
-                          ],
-                        ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: pct,
+                        minHeight: 6,
+                        backgroundColor: Nex.surfaceDim,
+                        valueColor: AlwaysStoppedAnimation(_modeColor(m)),
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
-              ),
+              );
+            }),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            // Smart Insights
+            if (insights.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              Text('Smart Insights', style: Nex.h3),
+              const SizedBox(height: 12),
+              ...insights.map((i) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Nex.surface,
+                  borderRadius: BorderRadius.circular(Nex.r12),
+                  border: Border.all(color: Nex.border, width: 0.5),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(_insightIcon(i.type), size: 18, color: Nex.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(i.content, style: Nex.bodySub, maxLines: 3, overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
+              )),
+            ],
           ],
         );
       },
     );
   }
 
-  String _generateOverview(List<NexNote> notes, List<Insight> insights) {
-    if (notes.isEmpty) return 'Start capturing thoughts to see your thinking patterns here.';
+  Color _modeColor(ThoughtMode m) => switch (m) {
+    ThoughtMode.idea => Nex.amber,
+    ThoughtMode.deepThinking => Nex.violet,
+    ThoughtMode.quickCapture => Nex.cyan,
+    ThoughtMode.reflection => Nex.blue,
+    ThoughtMode.taskOriented => Nex.green,
+  };
 
-    final buffer = StringBuffer();
-    buffer.write('You have ${notes.length} thought${notes.length == 1 ? '' : 's'} across your spaces. ');
-
-    final modeCount = <ThoughtMode, int>{};
-    for (final n in notes) {
-      modeCount[n.mode] = (modeCount[n.mode] ?? 0) + 1;
-    }
-    final topMode = modeCount.entries.reduce((a, b) => a.value >= b.value ? a : b);
-    buffer.write('Most of your thinking is in ${topMode.key.label} mode ${topMode.key.emoji}. ');
-
-    if (insights.isNotEmpty) {
-      buffer.write('${insights.length} insight${insights.length == 1 ? '' : 's'} detected from your notes.');
-    }
-
-    return buffer.toString();
-  }
+  IconData _insightIcon(InsightType t) => switch (t) {
+    InsightType.decision => Icons.gavel_rounded,
+    InsightType.idea => Icons.lightbulb_outline_rounded,
+    InsightType.task => Icons.check_circle_outline_rounded,
+    InsightType.followUp => Icons.replay_rounded,
+  };
 }
 
 class _StatCard extends StatelessWidget {
-  final String emoji;
   final String label;
-  final int count;
+  final String value;
+  final IconData icon;
   final Color color;
 
-  const _StatCard({
-    required this.emoji,
-    required this.label,
-    required this.count,
-    required this.color,
-  });
+  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: NexColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: NexColors.cardShadow,
-        ),
-        child: Column(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 6),
-            Text(
-              '$count',
-              style: NexTypography.headlineLarge.copyWith(
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: NexTypography.caption,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Nex.surface,
+        borderRadius: BorderRadius.circular(Nex.r12),
+        border: Border.all(color: Nex.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Icon(icon, size: 20, color: color),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, style: Nex.h1),
+              Text(label, style: Nex.small),
+            ],
+          ),
+        ],
       ),
     );
   }

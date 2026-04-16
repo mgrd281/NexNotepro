@@ -15,168 +15,108 @@ class MemorySpacesScreen extends StatefulWidget {
 }
 
 class _MemorySpacesScreenState extends State<MemorySpacesScreen> {
-  MemorySpace? _selectedSpace;
+  MemorySpace? _selected;
+
+  IconData _icon(MemorySpace s) => switch (s) {
+    MemorySpace.personal => Icons.person_rounded,
+    MemorySpace.work => Icons.work_rounded,
+    MemorySpace.ideasLab => Icons.palette_rounded,
+    MemorySpace.lifeJournal => Icons.auto_stories_rounded,
+  };
+
+  Color _color(MemorySpace s) => switch (s) {
+    MemorySpace.personal => Nex.blue,
+    MemorySpace.work => Nex.green,
+    MemorySpace.ideasLab => Nex.violet,
+    MemorySpace.lifeJournal => Nex.amber,
+  };
 
   @override
   Widget build(BuildContext context) {
     return Consumer<NotesProvider>(
       builder: (context, provider, _) {
-        final notes = _selectedSpace != null
-            ? provider.notesForSpace(_selectedSpace!)
-            : provider.filteredNotes;
+        final notes = _selected != null
+            ? provider.notes.where((n) => n.space == _selected).toList()
+            : <NexNote>[];
 
-        return CustomScrollView(
+        return ListView(
           physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 16)),
+          padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 120),
+          children: [
+            Text('Spaces', style: Nex.display),
+            const SizedBox(height: 4),
+            Text('Organize your thinking', style: Nex.caption),
+            const SizedBox(height: 24),
 
-            // Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Memory Spaces', style: NexTypography.displayMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Your organized thinking areas',
-                      style: NexTypography.bodyMedium,
+            // Grid of spaces
+            GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.6,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: MemorySpace.values.map((space) {
+                final count = provider.noteCountForSpace(space);
+                final isActive = _selected == space;
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selected = isActive ? null : space);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isActive ? _color(space).withValues(alpha: 0.08) : Nex.surface,
+                      borderRadius: BorderRadius.circular(Nex.r12),
+                      border: Border.all(
+                        color: isActive ? _color(space).withValues(alpha: 0.3) : Nex.border,
+                        width: 0.5,
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // Space grid
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.4,
-                  children: MemorySpace.values.map((space) {
-                    final isActive = _selectedSpace == space;
-                    final color = _spaceColor(space);
-                    return GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _selectedSpace = isActive ? null : space;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isActive ? color.withValues(alpha: 0.12) : NexColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isActive ? color.withValues(alpha: 0.4) : Colors.transparent,
-                            width: 2,
-                          ),
-                          boxShadow: NexColors.cardShadow,
-                        ),
-                        child: Column(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(_icon(space), size: 22, color: _color(space)),
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Text(space.icon, style: const TextStyle(fontSize: 20)),
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(space.label, style: NexTypography.titleMedium),
-                                Text(
-                                  '${provider.noteCountForSpace(space)} thoughts',
-                                  style: NexTypography.caption,
-                                ),
-                              ],
-                            ),
+                            Text(space.label, style: Nex.label.copyWith(fontWeight: FontWeight.w600)),
+                            Text('$count notes', style: Nex.small),
                           ],
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // Notes list
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  _selectedSpace != null ? '${_selectedSpace!.label} Notes' : 'All Notes',
-                  style: NexTypography.headlineMedium,
-                ),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-            if (notes.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Center(
-                    child: Text(
-                      _selectedSpace != null
-                          ? 'No thoughts in ${_selectedSpace!.label} yet'
-                          : 'No notes yet',
-                      style: NexTypography.bodyMedium,
+                      ],
                     ),
                   ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                sliver: SliverList.separated(
-                  itemCount: notes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => NoteCard(
-                    note: notes[i],
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => NoteDetailScreen(note: notes[i]),
-                        ),
-                      );
-                    },
-                    onLongPress: () => provider.togglePin(notes[i].id),
-                  ),
-                ),
-              ),
+                );
+              }).toList(),
+            ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            // Notes for selected space
+            if (_selected != null) ...[
+              const SizedBox(height: 28),
+              Text('${_selected!.label} notes', style: Nex.h3),
+              const SizedBox(height: 12),
+              if (notes.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text('No notes in this space yet', style: Nex.bodySub),
+                )
+              else
+                ...notes.map((note) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: NoteCard(
+                    note: note,
+                    onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => NoteDetailScreen(note: note))),
+                  ),
+                )),
+            ],
           ],
         );
       },
     );
   }
-
-  Color _spaceColor(MemorySpace space) => switch (space) {
-    MemorySpace.work => NexColors.spaceWork,
-    MemorySpace.personal => NexColors.spacePersonal,
-    MemorySpace.ideasLab => NexColors.spaceIdeasLab,
-    MemorySpace.lifeJournal => NexColors.spaceLifeJournal,
-  };
 }

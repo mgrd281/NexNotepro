@@ -3,22 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/notes_provider.dart';
 import 'theme/app_theme.dart';
+import 'widgets/bottom_nav_bar.dart';
 import 'screens/home_screen.dart';
 import 'screens/timeline_screen.dart';
 import 'screens/memory_spaces_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/add_note_screen.dart';
-import 'widgets/bottom_nav_bar.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarBrightness: Brightness.light,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-    ),
-  );
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
+  ));
   runApp(const NexNoteApp());
 }
 
@@ -32,22 +29,22 @@ class NexNoteApp extends StatelessWidget {
       child: MaterialApp(
         title: 'NexNote',
         debugShowCheckedModeBanner: false,
-        theme: NexTheme.light,
-        home: const AppShell(),
+        theme: Nex.theme,
+        home: const _Shell(),
       ),
     );
   }
 }
 
-class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+class _Shell extends StatefulWidget {
+  const _Shell();
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  State<_Shell> createState() => _ShellState();
 }
 
-class _AppShellState extends State<AppShell> {
-  int _currentIndex = 0;
+class _ShellState extends State<_Shell> {
+  int _tab = 0;
 
   final _screens = const [
     HomeScreen(),
@@ -56,35 +53,16 @@ class _AppShellState extends State<AppShell> {
     InsightsScreen(),
   ];
 
-  void _onTabTap(int index) {
-    setState(() => _currentIndex = index);
-  }
-
-  void _onAddPressed() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, animation, __) => FadeTransition(
-          opacity: animation,
-          child: const AddNoteScreen(),
-        ),
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NexColors.background,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: NexBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTap,
-        onAddPressed: _onAddPressed,
+      backgroundColor: Nex.bg,
+      body: IndexedStack(index: _tab, children: _screens),
+      bottomNavigationBar: NexBottomNav(
+        current: _tab,
+        onTap: (i) => setState(() => _tab = i),
+        onAdd: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const AddNoteScreen())),
       ),
     );
   }

@@ -2,181 +2,118 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class FocusWritingScreen extends StatefulWidget {
-  final String initialTitle;
-  final String initialContent;
-  final void Function(String title, String content) onSave;
+  final String? initialTitle;
+  final String? initialContent;
+  final void Function(String title, String content)? onSave;
 
-  const FocusWritingScreen({
-    super.key,
-    this.initialTitle = '',
-    this.initialContent = '',
-    required this.onSave,
-  });
+  const FocusWritingScreen({super.key, this.initialTitle, this.initialContent, this.onSave});
 
   @override
   State<FocusWritingScreen> createState() => _FocusWritingScreenState();
 }
 
-class _FocusWritingScreenState extends State<FocusWritingScreen>
-    with SingleTickerProviderStateMixin {
-  late final TextEditingController _titleController;
-  late final TextEditingController _contentController;
-  late final AnimationController _fadeController;
-  late final Animation<double> _fadeAnimation;
-  late final FocusNode _contentFocus;
+class _FocusWritingScreenState extends State<FocusWritingScreen> {
+  late final TextEditingController _title;
+  late final TextEditingController _content;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.initialTitle);
-    _contentController = TextEditingController(text: widget.initialContent);
-    _contentFocus = FocusNode();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    );
-    _fadeController.forward();
+    _title = TextEditingController(text: widget.initialTitle ?? '');
+    _content = TextEditingController(text: widget.initialContent ?? '');
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
-    _contentFocus.dispose();
-    _fadeController.dispose();
+    _title.dispose();
+    _content.dispose();
     super.dispose();
   }
 
   void _done() {
-    widget.onSave(_titleController.text, _contentController.text);
+    widget.onSave?.call(_title.text, _content.text);
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final wordCount = _contentController.text
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .length;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFFCFBFF),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Minimal top bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Text(
-                        'Back',
-                        style: NexTypography.labelMedium.copyWith(
-                          color: NexColors.textTertiary,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      backgroundColor: Nex.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Minimal top bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 12, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: _done,
+                    icon: const Icon(Icons.arrow_back_rounded, size: 22),
+                  ),
+                  const Spacer(),
+                  ValueListenableBuilder(
+                    valueListenable: _content,
+                    builder: (_, val, __) {
+                      final words = val.text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+                      return Text('$words words', style: Nex.caption);
+                    },
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: _done,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
-                        color: NexColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Nex.primary,
+                        borderRadius: BorderRadius.circular(Nex.r8),
                       ),
-                      child: Text(
-                        '🧘  Focus Mode',
-                        style: NexTypography.caption.copyWith(
-                          color: NexColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Text('Done', style: Nex.label.copyWith(color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Focus editor
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    TextField(
+                      controller: _title,
+                      style: Nex.focusTitle,
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        hintText: 'Title',
+                        hintStyle: Nex.focusTitle.copyWith(color: Nex.textMuted.withValues(alpha: 0.4)),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: _done,
-                      child: Text(
-                        'Done',
-                        style: NexTypography.labelMedium.copyWith(
-                          color: NexColors.primary,
-                          fontWeight: FontWeight.w600,
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _content,
+                        style: Nex.focusBody,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: InputDecoration(
+                          hintText: 'Write freely…',
+                          hintStyle: Nex.focusBody.copyWith(color: Nex.textMuted.withValues(alpha: 0.3)),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-
-              // Writing area
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _titleController,
-                        style: NexTypography.focusTitle,
-                        maxLines: null,
-                        textAlign: TextAlign.center,
-                        onSubmitted: (_) => _contentFocus.requestFocus(),
-                        decoration: InputDecoration(
-                          hintText: 'What\'s on your mind?',
-                          hintStyle: NexTypography.focusTitle.copyWith(
-                            color: NexColors.textTertiary.withValues(alpha: 0.4),
-                          ),
-                          border: InputBorder.none,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 40,
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: NexColors.primary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextField(
-                        controller: _contentController,
-                        focusNode: _contentFocus,
-                        style: NexTypography.focusBody,
-                        maxLines: null,
-                        minLines: 12,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'Let your thoughts flow…',
-                          hintStyle: NexTypography.focusBody.copyWith(
-                            color: NexColors.textTertiary.withValues(alpha: 0.35),
-                          ),
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Minimal footer
-              Padding(
-                padding: const EdgeInsets.fromLTRB(32, 0, 32, 16),
-                child: Text(
-                  '$wordCount words',
-                  style: NexTypography.caption.copyWith(
-                    color: NexColors.textTertiary.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -11,207 +11,131 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<NotesProvider>(
       builder: (context, provider, _) {
-        final pinnedNotes = provider.pinnedNotes;
-        final recentNotes = provider.filteredNotes;
+        final pinned = provider.pinnedNotes;
+        final recent = provider.filteredNotes;
 
-        return CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Top safe area
-            SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 16)),
-
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 120),
+          children: [
             // Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _greeting(),
-                      style: NexTypography.bodyMedium.copyWith(
-                        color: NexColors.textTertiary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const GradientLogo(fontSize: 32),
-                  ],
-                ),
-              ),
-            ),
+            Text(_greeting(), style: Nex.label),
+            const SizedBox(height: 4),
+            Text('NexNote', style: Nex.display),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            const SizedBox(height: 20),
 
             // Search
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SearchField(
-                  onChanged: (q) => provider.setSearchQuery(q),
-                ),
-              ),
-            ),
+            NexSearchBar(onChanged: (q) => provider.setSearchQuery(q)),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 28)),
+            const SizedBox(height: 28),
 
-            // Memory Spaces
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
-                child: const SectionHeader(title: 'Memory Spaces'),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 140,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  children: [
-                    _SpaceCardBuilder(space: MemorySpace.work, color: NexColors.spaceWork, provider: provider),
-                    const SizedBox(width: 12),
-                    _SpaceCardBuilder(space: MemorySpace.personal, color: NexColors.spacePersonal, provider: provider),
-                    const SizedBox(width: 12),
-                    _SpaceCardBuilder(space: MemorySpace.ideasLab, color: NexColors.spaceIdeasLab, provider: provider),
-                    const SizedBox(width: 12),
-                    _SpaceCardBuilder(space: MemorySpace.lifeJournal, color: NexColors.spaceLifeJournal, provider: provider),
-                  ],
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // Pinned Thoughts
-            if (pinnedNotes.isNotEmpty) ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: SectionHeader(
-                    title: 'Pinned Thoughts',
-                    trailing: '${pinnedNotes.length}',
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 180,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    itemCount: pinnedNotes.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, i) => SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.78,
-                      child: NoteCard(
-                        note: pinnedNotes[i],
-                        onTap: () => _openNote(context, pinnedNotes[i]),
-                        onLongPress: () => provider.togglePin(pinnedNotes[i].id),
+            // Memory Spaces (compact row)
+            const SectionTitle(title: 'Spaces'),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 72,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                children: MemorySpace.values.map((space) {
+                  final count = provider.noteCountForSpace(space);
+                  final isActive = provider.activeSpaceFilter == space;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => provider.setSpaceFilter(isActive ? null : space),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 120,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isActive ? Nex.primary.withValues(alpha: 0.08) : Nex.surface,
+                          borderRadius: BorderRadius.circular(Nex.r12),
+                          border: Border.all(
+                            color: isActive ? Nex.primary.withValues(alpha: 0.3) : Nex.border,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(space.label, style: Nex.label.copyWith(
+                              color: isActive ? Nex.primary : Nex.text,
+                              fontWeight: FontWeight.w600,
+                            )),
+                            Text('$count notes', style: Nex.small),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
-
-            // Recent Thoughts
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SectionHeader(
-                  title: 'Recent Thoughts',
-                  trailing: '${recentNotes.length} notes',
-                ),
+                  );
+                }).toList(),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-            if (recentNotes.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(48),
+            // Pinned
+            if (pinned.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              SectionTitle(title: 'Pinned', action: '${pinned.length}'),
+              const SizedBox(height: 12),
+              ...pinned.map((note) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: NoteCard(
+                  note: note,
+                  onTap: () => _open(context, note),
+                  onLongPress: () => provider.togglePin(note.id),
+                ),
+              )),
+            ],
+
+            // Recent
+            const SizedBox(height: 28),
+            SectionTitle(title: 'Recent', action: '${recent.length}'),
+            const SizedBox(height: 12),
+
+            if (recent.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Center(
                   child: Column(
                     children: [
-                      const Text('🧘', style: TextStyle(fontSize: 48)),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Your mind is clear',
-                        style: NexTypography.headlineMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tap + to capture your first thought',
-                        style: NexTypography.bodyMedium,
-                      ),
+                      Icon(Icons.edit_note_rounded, size: 40, color: Nex.textMuted),
+                      const SizedBox(height: 12),
+                      Text('No thoughts yet', style: Nex.h3.copyWith(color: Nex.textMuted)),
+                      const SizedBox(height: 4),
+                      Text('Tap + to start', style: Nex.caption),
                     ],
                   ),
                 ),
               )
             else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                sliver: SliverList.separated(
-                  itemCount: recentNotes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => NoteCard(
-                    note: recentNotes[i],
-                    onTap: () => _openNote(context, recentNotes[i]),
-                    onLongPress: () => provider.togglePin(recentNotes[i].id),
-                  ),
+              ...recent.map((note) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: NoteCard(
+                  note: note,
+                  onTap: () => _open(context, note),
+                  onLongPress: () => provider.togglePin(note.id),
                 ),
-              ),
-
-            // Bottom padding for nav bar
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              )),
           ],
         );
       },
     );
   }
 
-  void _openNote(BuildContext context, NexNote note) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => NoteDetailScreen(note: note)),
-    );
-  }
-}
-
-class _SpaceCardBuilder extends StatelessWidget {
-  final MemorySpace space;
-  final Color color;
-  final NotesProvider provider;
-
-  const _SpaceCardBuilder({
-    required this.space,
-    required this.color,
-    required this.provider,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return MemorySpaceCard(
-      emoji: space.icon,
-      label: space.label,
-      count: provider.noteCountForSpace(space),
-      color: color,
-      onTap: () => provider.setSpaceFilter(
-        provider.activeSpaceFilter == space ? null : space,
-      ),
-    );
+  void _open(BuildContext context, NexNote note) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => NoteDetailScreen(note: note)));
   }
 }
